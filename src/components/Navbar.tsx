@@ -1,14 +1,34 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, X, Search, Hammer } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Menu, X, Search, Hammer, User, LogOut } from 'lucide-react';
+import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/');
+    router.refresh();
+  };
 
   const navLinks = [
     { name: 'Inicio', path: '/' },
@@ -28,7 +48,7 @@ export function Navbar() {
             </div>
             <div className="flex flex-col">
               <span className="text-white font-black text-xl tracking-tighter leading-none">
-                MACHINA<span className="text-primary">.</span>
+                MACHINA
               </span>
               <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase leading-none mt-1">
                 Heavy Machinery
@@ -60,24 +80,57 @@ export function Navbar() {
               <Search className="w-5 h-5" />
             </button>
             <div className="h-6 w-px bg-white/10 mx-1"></div>
-            <Link 
-              href="/contact" 
-              className="bg-primary text-dark-900 px-4 py-2 rounded-sm font-bold text-sm hover:bg-primary-hover transition-all shadow-[0_4px_14px_rgba(255,193,7,0.2)] hover:shadow-[0_6px_20px_rgba(255,193,7,0.3)] hover:-translate-y-0.5 active:translate-y-0"
-            >
-              Cotizar
-            </Link>
-            <Link 
-              href="/login" 
-              className="text-gray-400 hover:text-white font-medium text-sm transition-colors px-3 py-2 rounded-sm hover:bg-white/5"
-            >
-              Iniciar Sesión
-            </Link>
-            <Link 
-              href="/register" 
-              className="text-white font-medium text-sm transition-colors border border-white/10 px-4 py-2 rounded-sm hover:bg-white/5"
-            >
-              Registrarse
-            </Link>
+            
+            {user?.emailVerified ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm">{user.displayName || user.email?.split('@')[0]}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-400 hover:text-red-400 font-medium text-sm transition-colors px-3 py-2 rounded-sm hover:bg-white/5 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar Sesión
+                </button>
+              </div>
+            ) : (
+              <>
+                {pathname === '/login' && (
+                  <Link 
+                    href="/register" 
+                    className="text-white font-medium text-sm transition-colors border border-white/10 px-4 py-2 rounded-sm hover:bg-white/5"
+                  >
+                    Registrarse
+                  </Link>
+                )}
+                {pathname === '/register' && (
+                  <Link 
+                    href="/login" 
+                    className="text-gray-400 hover:text-white font-medium text-sm transition-colors px-3 py-2 rounded-sm hover:bg-white/5"
+                  >
+                    Iniciar Sesión
+                  </Link>
+                )}
+                {pathname !== '/login' && pathname !== '/register' && (
+                  <>
+                    <Link 
+                      href="/login" 
+                      className="text-gray-400 hover:text-white font-medium text-sm transition-colors px-3 py-2 rounded-sm hover:bg-white/5"
+                    >
+                      Iniciar Sesión
+                    </Link>
+                    <Link 
+                      href="/register" 
+                      className="text-white font-medium text-sm transition-colors border border-white/10 px-4 py-2 rounded-sm hover:bg-white/5"
+                    >
+                      Registrarse
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           <div className="md:hidden">
@@ -110,20 +163,54 @@ export function Navbar() {
               </Link>
             ))}
             <div className="border-t border-white/10 mt-4 pt-4 pb-2 space-y-2">
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5"
-              >
-                Iniciar Sesión
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-3 rounded-md text-base font-medium text-dark-900 bg-primary hover:bg-primary-hover text-center"
-              >
-                Registrarse
-              </Link>
+              {user?.emailVerified ? (
+                <button
+                  onClick={() => { handleLogout(); setIsOpen(false); }}
+                  className="block w-full px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-red-400 hover:bg-white/5 text-left flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar Sesión
+                </button>
+              ) : (
+                <>
+                  {pathname === '/login' && (
+                    <Link
+                      href="/register"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-3 py-3 rounded-md text-base font-medium text-dark-900 bg-primary hover:bg-primary-hover text-center"
+                    >
+                      Registrarse
+                    </Link>
+                  )}
+                  {pathname === '/register' && (
+                    <Link
+                      href="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5"
+                    >
+                      Iniciar Sesión
+                    </Link>
+                  )}
+                  {pathname !== '/login' && pathname !== '/register' && (
+                    <>
+                      <Link
+                        href="/login"
+                        onClick={() => setIsOpen(false)}
+                        className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5"
+                      >
+                        Iniciar Sesión
+                      </Link>
+                      <Link
+                        href="/register"
+                        onClick={() => setIsOpen(false)}
+                        className="block px-3 py-3 rounded-md text-base font-medium text-dark-900 bg-primary hover:bg-primary-hover text-center"
+                      >
+                        Registrarse
+                      </Link>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

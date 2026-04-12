@@ -3,7 +3,7 @@ import { Hammer, MapPin, Phone } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="bg-dark-950 border-t border-dark-800 pt-20 pb-10">
+    <footer className="bg-dark-950 border-t border-dark-800 pt-20 pb-10 bg-grid-pattern relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="space-y-6">
@@ -12,7 +12,7 @@ export function Footer() {
                 <Hammer className="w-5 h-5 text-dark-900" />
               </div>
               <span className="text-white font-black text-xl tracking-tighter">
-                MACHINA<span className="text-primary">.</span>
+                MACHINA
               </span>
             </div>
             <p className="text-gray-500 text-sm leading-relaxed">
@@ -63,7 +63,7 @@ export function Footer() {
         
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-600 text-sm">
-            © 2024 Machina. Todos los derechos reservados.
+            © 2026 Machina. Todos los derechos reservados.
           </p>
           <div className="flex gap-6 text-sm text-gray-600">
             <Link href="#" className="hover:text-gray-400">Privacidad</Link>

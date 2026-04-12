@@ -1,20 +1,50 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, Star, Zap, ShieldCheck } from 'lucide-react';
-
-const PRODUCTS = [
-  { id: 1, name: "Excavadora CAT 320", category: "Excavadoras", price: "$4,500/día", image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=2532&auto=format&fit=crop", tag: "Popular", status: "Disponible" },
-  { id: 2, name: "Retroexcavadora 420F", category: "Retroexcavadoras", price: "$3,200/día", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=2670&auto=format&fit=crop", tag: "Oferta", status: "Pocas Unidades" },
-  { id: 3, name: "Grúa Todo Terreno", category: "Grúas", price: "$12,000/día", image: "https://images.unsplash.com/photo-1503708928676-1cb796a0891e?q=80&w=2574&auto=format&fit=crop", tag: "Nuevo", status: "Disponible" },
-  { id: 4, name: "Bulldozer D6T", category: "Bulldozers", price: "$5,500/día", image: "https://images.unsplash.com/photo-1519003300449-424ad0405076?q=80&w=2000&auto=format&fit=crop", tag: null, status: "Mantenimiento" },
-  { id: 5, name: "Rodillo Compactador", category: "Compactación", price: "$2,800/día", image: "https://images.unsplash.com/photo-1627836873536-e0f0559f3438?q=80&w=2670&auto=format&fit=crop", tag: null, status: "Disponible" },
-  { id: 6, name: "Cargador Frontal 950", category: "Cargadores", price: "$4,100/día", image: "https://images.unsplash.com/photo-1579623261984-41f9a81d2b16?q=80&w=2670&auto=format&fit=crop", tag: "Recomendado", status: "Disponible" },
-];
+import { Search, ArrowRight, Zap, Loader2 } from 'lucide-react';
+import { getProducts } from '@/lib/firestore';
 
 const CATEGORIES = ["Todas", "Excavadoras", "Retroexcavadoras", "Grúas", "Bulldozers", "Compactación", "Cargadores"];
 
+interface Producto {
+  id: string;
+  nombre: string;
+  categoria: string;
+  precio: string;
+  imagen: string;
+  tag: string | null;
+  status: string;
+  descripcion?: string;
+  especificacion?: string;
+}
+
 export default function Catalog() {
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categoria, setCategoria] = useState("Todas");
+  const [busqueda, setBusqueda] = useState("");
+
+  useEffect(() => {
+    cargarProductos();
+  }, [categoria]);
+
+  const cargarProductos = async () => {
+    setLoading(true);
+    try {
+      const data = await getProducts(categoria === "Todas" ? undefined : categoria);
+      setProductos(data);
+    } catch (error) {
+      console.error("Error cargando productos:", error);
+    }
+    setLoading(false);
+  };
+
+  const productosFiltrados = productos.filter(p => 
+    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    p.categoria.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-dark-950 bg-noise relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
@@ -42,6 +72,8 @@ export default function Catalog() {
               <input 
                 type="text" 
                 placeholder="Buscar por nombre, modelo o ID..." 
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
                 className="w-full bg-dark-950 border border-dark-700 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none transition-all placeholder:text-dark-600"
               />
             </div>
@@ -50,8 +82,9 @@ export default function Catalog() {
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
+                  onClick={() => setCategoria(cat)}
                   className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all border ${
-                    cat === "Todas" 
+                    categoria === cat 
                       ? "bg-primary text-dark-950 border-primary shadow-[0_0_15px_rgba(255,193,7,0.3)]" 
                       : "bg-dark-950 text-gray-400 border-dark-700 hover:border-gray-500 hover:text-white"
                   }`}
@@ -63,94 +96,71 @@ export default function Catalog() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {PRODUCTS.map((product, index) => (
-            <Link key={product.id} href={`/catalog`} className="group block h-full">
-              <div className="bg-dark-900 rounded-2xl border border-white/5 overflow-hidden hover:border-primary/50 transition-all duration-300 h-full flex flex-col hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 relative">
-                <div className="relative aspect-[4/3] overflow-hidden bg-dark-800">
-                  <img 
-                    src={product.image} 
-                    alt={product.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent opacity-60"></div>
-                  
-                  <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    {product.tag && (
-                      <span className="bg-primary text-dark-950 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
-                        {product.tag}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          </div>
+        ) : productosFiltrados.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-400 text-xl">No se encontraron productos</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {productosFiltrados.map((product) => (
+              <Link key={product.id} href={`/catalog/${product.id}`} className="group block h-full">
+                <div className="bg-dark-900 rounded-2xl border border-white/5 overflow-hidden hover:border-primary/50 transition-all duration-300 h-full flex flex-col hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 relative">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-dark-800">
+                    <img 
+                      src={product.imagen} 
+                      alt={product.nombre} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent opacity-60"></div>
+                    
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                      {product.tag && (
+                        <span className="bg-primary text-dark-950 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
+                          {product.tag}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="absolute top-4 right-4">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        product.status === 'Disponible' 
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          : product.status === 'Mantenimiento'
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      }`}>
+                        {product.status}
                       </span>
-                    )}
-                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg backdrop-blur-md border ${
-                      product.status === 'Disponible' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
-                      product.status === 'Mantenimiento' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
-                      'bg-orange-500/20 text-orange-400 border-orange-500/30'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </div>
-
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-dark-950/40 backdrop-blur-[2px]">
-                    <span className="bg-white text-dark-950 px-6 py-3 rounded-full font-bold text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 flex items-center gap-2">
-                      Ver Detalles <ArrowRight className="w-4 h-4" />
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-6 flex flex-col flex-1 relative">
-                  <div className="absolute -top-6 right-6 w-12 h-12 bg-dark-800 rounded-xl border border-white/10 flex items-center justify-center shadow-xl group-hover:bg-primary group-hover:text-dark-950 transition-colors duration-300">
-                    <ArrowRight className="w-5 h-5 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
-                  </div>
-
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-500 font-mono uppercase tracking-widest mb-1">{product.category}</p>
-                    <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">{product.name}</h3>
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-0.5">Precio por día</p>
-                      <p className="text-lg font-black text-white">{product.price}</p>
                     </div>
-                    <div className="flex gap-1">
-                      {[1,2,3,4,5].map((star) => (
-                        <Star key={star} className="w-3 h-3 text-primary fill-primary" />
-                      ))}
+                  </div>
+
+                  <div className="p-6 flex flex-col flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-xl font-black text-white group-hover:text-primary transition-colors">
+                        {product.nombre}
+                      </h3>
+                    </div>
+                    <p className="text-gray-500 text-sm mb-4">{product.categoria}</p>
+                    <p className="text-gray-400 text-sm line-clamp-2 mb-4">
+                      {product.descripcion || `Equipo de ${product.categoria.toLowerCase()} para proyectos de construcción.`}
+                    </p>
+                    
+                    <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-2xl font-black text-white">{product.precio}</span>
+                      <div className="w-10 h-10 rounded-full bg-dark-800 flex items-center justify-center group-hover:bg-primary group-hover:text-dark-950 transition-all">
+                        <ArrowRight className="w-5 h-5" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="mt-16 text-center">
-          <button className="bg-dark-900 border border-white/10 text-white px-8 py-4 rounded-sm font-bold hover:bg-white/5 transition-all uppercase tracking-widest text-sm">
-            Cargar Más Equipos
-          </button>
-        </div>
-      </section>
-
-      <section className="py-20 border-t border-white/5 bg-dark-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: "Certificación ISO", desc: "Todos nuestros equipos cumplen con normativas internacionales.", icon: ShieldCheck },
-              { title: "Mantenimiento 24/7", desc: "Equipo de soporte técnico disponible en todo momento.", icon: Zap },
-              { title: "Garantía Total", desc: "Reemplazo inmediato en caso de falla técnica.", icon: Star },
-            ].map((item, idx) => (
-              <div key={idx} className="flex gap-4 items-start p-6 rounded-xl bg-dark-950 border border-white/5 hover:border-primary/30 transition-colors">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                  <item.icon className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold mb-2">{item.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
-        </div>
+        )}
       </section>
     </div>
   );
