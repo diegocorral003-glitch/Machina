@@ -2,13 +2,15 @@ import { db } from './firebase';
 import { 
   collection, 
   addDoc, 
-  getDocs, 
-  getDoc, 
+  getDocs,
+  getDoc,
   doc, 
   query, 
   where, 
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 
 // Colecciones
@@ -72,4 +74,65 @@ export async function getFavorites(userId: string) {
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => doc.data().productId);
+}
+
+// Mensajes de contacto - Admin
+export async function getContactMessages() {
+  const q = query(
+    collection(db, COLLECTIONS.CONTACT_MESSAGES),
+    orderBy('fecha', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function markMessageAsRead(messageId: string) {
+  const docRef = doc(db, COLLECTIONS.CONTACT_MESSAGES, messageId);
+  await updateDoc(docRef, { leido: true });
+}
+
+export async function deleteContactMessage(messageId: string) {
+  const docRef = doc(db, COLLECTIONS.CONTACT_MESSAGES, messageId);
+  await deleteDoc(docRef);
+}
+
+// CRUD Productos - Admin
+export async function createProduct(data: {
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  categoria: string;
+  imagen: string;
+  marca?: string;
+  modelo?: string;
+  disponibilidad?: string;
+}) {
+  const docRef = await addDoc(collection(db, COLLECTIONS.PRODUCTS), {
+    ...data,
+    createdAt: serverTimestamp(),
+    disponibilidad: data.disponibilidad || 'disponible',
+  });
+  return docRef.id;
+}
+
+export async function updateProduct(id: string, data: {
+  nombre?: string;
+  descripcion?: string;
+  precio?: number;
+  categoria?: string;
+  imagen?: string;
+  marca?: string;
+  modelo?: string;
+  disponibilidad?: string;
+}) {
+  const docRef = doc(db, COLLECTIONS.PRODUCTS, id);
+  await updateDoc(docRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteProduct(id: string) {
+  const docRef = doc(db, COLLECTIONS.PRODUCTS, id);
+  await deleteDoc(docRef);
 }

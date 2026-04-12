@@ -14,10 +14,13 @@ export function Navbar() {
   const router = useRouter();
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      const storedUser = localStorage.getItem('machina_user');
+      setIsLoggedIn(!!storedUser || !!currentUser);
       setLoading(false);
     });
 
@@ -26,6 +29,8 @@ export function Navbar() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    localStorage.removeItem('machina_user');
+    setIsLoggedIn(false);
     router.push('/');
     router.refresh();
   };
@@ -81,11 +86,11 @@ export function Navbar() {
             </button>
             <div className="h-6 w-px bg-white/10 mx-1"></div>
             
-            {user?.emailVerified ? (
+            {isLoggedIn ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 text-gray-300">
                   <User className="w-4 h-4" />
-                  <span className="text-sm">{user.displayName || user.email?.split('@')[0]}</span>
+                  <span className="text-sm">Usuario</span>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -163,14 +168,22 @@ export function Navbar() {
               </Link>
             ))}
             <div className="border-t border-white/10 mt-4 pt-4 pb-2 space-y-2">
-              {user?.emailVerified ? (
-                <button
-                  onClick={() => { handleLogout(); setIsOpen(false); }}
-                  className="block w-full px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-red-400 hover:bg-white/5 text-left flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Cerrar Sesión
-                </button>
+              {isLoggedIn ? (
+                <>
+                  <button
+                    onClick={() => { router.push('/admin'); setIsOpen(false); }}
+                    className="block w-full px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-primary hover:bg-white/5 text-left flex items-center gap-2"
+                  >
+                    Panel Admin
+                  </button>
+                  <button
+                    onClick={() => { handleLogout(); setIsOpen(false); }}
+                    className="block w-full px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-red-400 hover:bg-white/5 text-left flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar Sesión
+                  </button>
+                </>
               ) : (
                 <>
                   {pathname === '/login' && (
