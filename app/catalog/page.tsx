@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Search, ArrowRight, Zap, Loader2, Star, ShieldCheck } from 'lucide-react';
-import { getProducts } from '@/lib/firestore';
-
-const CATEGORIES = ["Todas", "Excavadoras", "Retroexcavadoras", "Grúas", "Bulldozers", "Compactación", "Cargadores"];
+import { getProducts, getCategories } from '@/lib/firestore';
 
 interface Producto {
   id: string;
@@ -20,8 +18,15 @@ interface Producto {
   modelo?: string;
 }
 
+interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+}
+
 export default function Catalog() {
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [categorias, setCategorias] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoria, setCategoria] = useState("Todas");
   const [busqueda, setBusqueda] = useState("");
@@ -29,6 +34,10 @@ export default function Catalog() {
   const [visibleTrust, setVisibleTrust] = useState(false);
   const productRefs = useRef<(HTMLDivElement | null)[]>([]);
   const trustSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    cargarCategorias();
+  }, []);
 
   useEffect(() => {
     cargarProductos();
@@ -71,6 +80,15 @@ export default function Catalog() {
     return () => observer.disconnect();
   }, [visibleTrust]);
 
+  const cargarCategorias = async () => {
+    try {
+      const data = await getCategories();
+      setCategorias(data as Category[]);
+    } catch (error) {
+      console.error("Error cargando categorías:", error);
+    }
+  };
+
   const cargarProductos = async () => {
     setLoading(true);
     setVisibleProducts([]);
@@ -87,6 +105,10 @@ export default function Catalog() {
     p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     p.categoria.toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  const categoryOptions = categorias.length > 0 
+    ? ["Todas", ...categorias.map(c => c.nombre)]
+    : ["Todas"];
 
   return (
     <div className="min-h-screen bg-dark-950 bg-noise relative overflow-hidden">
@@ -139,7 +161,7 @@ export default function Catalog() {
             </div>
             
             <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-              {CATEGORIES.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setCategoria(cat)}

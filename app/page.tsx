@@ -3,13 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Search, Shield, Clock, MapPin, Zap, ChevronRight, Zap as ZapIcon, Loader2 } from 'lucide-react';
-import { getProducts } from '@/lib/firestore';
-
-const CATEGORIES = [
-  { title: "Excavadoras", subtitle: "Excavacion y Mov. de Tierra", img: "https://images.unsplash.com/photo-1581092160563-b73f43d8fe09?w=800&auto=format&fit=crop" },
-  { title: "Gruas", subtitle: "Elevacion de Carga Pesada", img: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&auto=format&fit=crop" },
-  { title: "Cargadores", subtitle: "Carga y Acarreo", img: "https://images.unsplash.com/photo-1590059598982-629226573c4f?w=800&auto=format&fit=crop" },
-];
+import { getProducts, getCategories } from '@/lib/firestore';
 
 interface Producto {
   id: string;
@@ -21,21 +15,35 @@ interface Producto {
   status: string;
 }
 
+interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+  descripcion?: string;
+  imagenDestacada?: string;
+  destacada?: boolean;
+}
+
 export default function Home() {
   const [products, setProducts] = useState<Producto[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
       try {
-        const data = await getProducts();
-        setProducts(data.slice(0, 4));
+        const [productsData, categoriesData] = await Promise.all([
+          getProducts(),
+          getCategories()
+        ]);
+        setProducts(productsData.slice(0, 4));
+        setCategories(categoriesData as Category[]);
       } catch (error) {
         console.error("Error:", error);
       }
       setLoading(false);
     };
-    loadProducts();
+    loadData();
   }, []);
   return (
     <div className="flex flex-col min-h-screen bg-dark-950">
@@ -176,12 +184,20 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {CATEGORIES.map((cat, idx) => (
-              <Link key={idx} href="/catalog" className="group relative h-[500px] bg-dark-900 overflow-hidden cursor-pointer border border-dark-800 hover:border-primary/50 transition-colors">
+            {(categories.filter(c => c.destacada).slice(0, 3).length > 0 
+              ? categories.filter(c => c.destacada).slice(0, 3) 
+              : categories.slice(0, 3)
+            ).map((cat, idx) => (
+              <Link key={cat.id} href={`/catalog?categoria=${cat.nombre}`} className="group relative h-[500px] bg-dark-900 overflow-hidden cursor-pointer border border-dark-800 hover:border-primary/50 transition-colors">
                 <div 
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
-                  style={{ backgroundImage: `url("${cat.img}")` }}
+                  style={{ backgroundImage: cat.imagenDestacada ? `url("${cat.imagenDestacada}")` : undefined }}
                 />
+                {!cat.imagenDestacada && (
+                  <div className="absolute inset-0 bg-dark-800 flex items-center justify-center">
+                    <Shield className="w-16 h-16 text-dark-700" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-dark-950/50 to-transparent opacity-90 group-hover:opacity-60 transition-opacity" />
                 
                 <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -190,8 +206,8 @@ export default function Home() {
 
                 <div className="absolute bottom-0 left-0 p-8 w-full">
                   <div className="h-1 w-12 bg-primary mb-4 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-                  <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-2">{cat.subtitle}</p>
-                  <h3 className="text-3xl font-black text-white uppercase italic">{cat.title}</h3>
+                  <p className="text-gray-400 font-mono text-xs uppercase tracking-widest mb-2">{cat.descripcion || cat.nombre}</p>
+                  <h3 className="text-3xl font-black text-white uppercase italic">{cat.nombre}</h3>
                 </div>
               </Link>
             ))}

@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://machina-2dd5b.firebaseapp.com", "https://machina-2dd5b.web.app"],
+    "method": ["GET", "POST", "PUT", "DELETE"],
+    "maxAgeSeconds": 3600,
+    "responseHeaders": ["Content-Type"]
+  }
+]

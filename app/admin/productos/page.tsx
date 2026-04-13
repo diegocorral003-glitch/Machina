@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Edit2, Trash2, Eye, Package, Loader2, AlertCircle } from 'lucide-react';
-import { getProducts, deleteProduct } from '@/lib/firestore';
+import { getProducts, deleteProduct, getCategories } from '@/lib/firestore';
 
 interface Product {
   id: string;
@@ -17,8 +17,15 @@ interface Product {
   disponibilidad?: string;
 }
 
+interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+}
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categorias, setCategorias] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('Todas');
@@ -26,15 +33,19 @@ export default function AdminProducts() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    loadProducts();
+    loadData();
   }, []);
 
-  async function loadProducts() {
+  async function loadData() {
     try {
-      const data = await getProducts();
-      setProducts(data as Product[]);
+      const [productsData, categoriesData] = await Promise.all([
+        getProducts(),
+        getCategories()
+      ]);
+      setProducts(productsData as Product[]);
+      setCategorias(categoriesData as Category[]);
     } catch (error) {
-      console.error('Error loading products:', error);
+      console.error('Error loading data:', error);
     }
     setLoading(false);
   }
@@ -52,7 +63,7 @@ export default function AdminProducts() {
     setDeleting(false);
   }
 
-  const categories = ['Todas', ...new Set(products.map(p => p.categoria).filter(Boolean))];
+  const categoryOptions = ['Todas', ...categorias.map(c => c.nombre)];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,7 +135,7 @@ export default function AdminProducts() {
           onChange={(e) => setFilterCategory(e.target.value)}
           className="bg-[#0F1012] border border-[#1a1a1a] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#FFC107] transition-all"
         >
-          {categories.map(cat => (
+          {categoryOptions.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>

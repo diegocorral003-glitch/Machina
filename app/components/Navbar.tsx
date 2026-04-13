@@ -27,6 +27,7 @@ export function Navbar() {
   }, []);
 
   const getUserData = () => {
+    if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem('machina_user');
     if (stored) {
       try {

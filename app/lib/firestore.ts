@@ -1,4 +1,5 @@
 import { db } from './firebase';
+import { storage } from './firebase';
 import { 
   collection, 
   addDoc, 
@@ -13,10 +14,12 @@ import {
   deleteDoc,
   setDoc
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Colecciones
 export const COLLECTIONS = {
   PRODUCTS: 'productos',
+  CATEGORIES: 'categorias',
   CONTACT_MESSAGES: 'mensajes_contacto',
   FAVORITES: 'favoritos',
   USERS: 'usuarios',
@@ -140,6 +143,18 @@ export async function deleteProduct(id: string) {
   await deleteDoc(docRef);
 }
 
+// Subir imagen a Firebase Storage
+export async function uploadProductImage(file: File): Promise<string> {
+  const timestamp = Date.now();
+  const fileName = `${timestamp}_${file.name.replace(/\s/g, '_')}`;
+  const storageRef = ref(storage, `productos/${fileName}`);
+  
+  await uploadBytes(storageRef, file);
+  const downloadURL = await getDownloadURL(storageRef);
+  
+  return downloadURL;
+}
+
 // Usuarios
 export async function createUserProfile(userId: string, data: {
   nombre: string;
@@ -215,4 +230,53 @@ export async function updateConfig(data: {
       updatedAt: serverTimestamp(),
     });
   }
+}
+
+// Categorías
+export async function getCategories() {
+  const q = query(collection(db, COLLECTIONS.CATEGORIES), orderBy('nombre', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getCategoryById(id: string) {
+  const docRef = doc(db, COLLECTIONS.CATEGORIES, id);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() };
+  }
+  return null;
+}
+
+export async function createCategory(data: {
+  nombre: string;
+  slug: string;
+  descripcion?: string;
+  imagenDestacada?: string;
+  destacada?: boolean;
+}) {
+  const docRef = await addDoc(collection(db, COLLECTIONS.CATEGORIES), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateCategory(id: string, data: {
+  nombre?: string;
+  slug?: string;
+  descripcion?: string;
+  imagenDestacada?: string;
+  destacada?: boolean;
+}) {
+  const docRef = doc(db, COLLECTIONS.CATEGORIES, id);
+  await updateDoc(docRef, {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteCategory(id: string) {
+  const docRef = doc(db, COLLECTIONS.CATEGORIES, id);
+  await deleteDoc(docRef);
 }

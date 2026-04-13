@@ -2,21 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Loader2, Image as ImageIcon, Tag, DollarSign } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Image as ImageIcon, Tag, DollarSign, X } from 'lucide-react';
 import Link from 'next/link';
-import { createProduct, updateProduct, getProductById } from '@/lib/firestore';
+import { createProduct, updateProduct, getProductById, getCategories } from '@/lib/firestore';
 
-const categorias = [
-  'Excavadoras',
-  'Retroexcavadoras',
-  'Cargadores',
-  'Compactadoras',
-  'Montacargas',
-  'Gruas',
-  'Generadores',
-  'Compresores',
-  'Otro'
-];
+interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+}
 
 export default function ProductForm() {
   const router = useRouter();
@@ -26,6 +20,7 @@ export default function ProductForm() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [categorias, setCategorias] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -36,12 +31,23 @@ export default function ProductForm() {
     modelo: '',
     disponibilidad: 'disponible'
   });
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
+    loadCategories();
     if (productId) {
       loadProduct();
     }
   }, [productId]);
+
+  async function loadCategories() {
+    try {
+      const data = await getCategories();
+      setCategorias(data as Category[]);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  }
 
   async function loadProduct() {
     setLoading(true);
@@ -58,11 +64,19 @@ export default function ProductForm() {
           modelo: product.modelo || '',
           disponibilidad: product.disponibilidad || 'disponible'
         });
+        if (product.imagen) {
+          setPreviewImage(product.imagen);
+        }
       }
     } catch (error) {
       console.error('Error loading product:', error);
     }
     setLoading(false);
+  }
+
+  function handleImageUrlChange(url: string) {
+    setFormData({ ...formData, imagen: url });
+    setPreviewImage(url);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -75,7 +89,7 @@ export default function ProductForm() {
         descripcion: formData.descripcion,
         precio: parseFloat(formData.precio) || 0,
         categoria: formData.categoria,
-        imagen: formData.imagen,
+        imagen: formData.imagen || '',
         marca: formData.marca,
         modelo: formData.modelo,
         disponibilidad: formData.disponibilidad
@@ -90,8 +104,9 @@ export default function ProductForm() {
       router.push('/admin/productos');
     } catch (error) {
       console.error('Error saving product:', error);
+      alert('Error al guardar el producto. Intenta de nuevo.');
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   if (loading) {
@@ -103,7 +118,7 @@ export default function ProductForm() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 px-4 lg:px-8">
       {/* Hero Section */}
       <div className="relative h-[25vh] min-h-[200px] rounded-2xl overflow-hidden">
         <img 
@@ -133,6 +148,27 @@ export default function ProductForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-[#0F1012] border border-[#1a1a1a] rounded-xl p-6 space-y-6">
+          {/* Preview de imagen */}
+          {previewImage && (
+            <div className="relative h-48 bg-[#1a1a1a] rounded-lg overflow-hidden">
+              <img 
+                src={previewImage} 
+                alt="Preview" 
+                className="w-full h-full object-contain"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewImage(null);
+                  setFormData({ ...formData, imagen: '' });
+                }}
+                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
@@ -186,9 +222,11 @@ export default function ProductForm() {
                 required
                 className="w-full bg-[#111] border border-[#222] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#FFC107] transition-all"
               >
-                <option value="">Selecciona una categoria</option>
+                <option value="">
+                  {categorias.length > 0 ? 'Selecciona una categoria' : 'Crea categorias primero en /admin/categorias'}
+                </option>
                 {categorias.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat.id} value={cat.nombre}>{cat.nombre}</option>
                 ))}
               </select>
             </div>
@@ -227,71 +265,53 @@ export default function ProductForm() {
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                 <ImageIcon className="w-4 h-4 inline mr-1" />
-                URL de Imagen
+                URL de Imagen del Producto
               </label>
-              <input
-                type="url"
-                value={formData.imagen}
-                onChange={(e) => setFormData({ ...formData, imagen: e.target.value })}
-                className="w-full bg-[#111] border border-[#222] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#FFC107] transition-all placeholder:text-gray-600"
-                placeholder="https://ejemplo.com/imagen.jpg"
-              />
+              
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={formData.imagen}
+                  onChange={(e) => handleImageUrlChange(e.target.value)}
+                  className="w-full bg-[#111] border border-[#222] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#FFC107] transition-all placeholder:text-gray-600"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                />
+                <p className="text-gray-500 text-xs">
+                  Pegá la URL de una imagen (buscá en Google Images, click derecho → copiar dirección de imagen)
+                </p>
+              </div>
             </div>
 
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                 Disponibilidad
               </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="disponibilidad"
-                    value="disponible"
-                    checked={formData.disponibilidad === 'disponible'}
-                    onChange={(e) => setFormData({ ...formData, disponibilidad: e.target.value })}
-                    className="w-4 h-4 text-[#FFC107] bg-[#111] border-[#333] focus:ring-[#FFC107]"
-                  />
-                  <span className="text-white">Disponible</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="disponibilidad"
-                    value="no_disponible"
-                    checked={formData.disponibilidad === 'no_disponible'}
-                    onChange={(e) => setFormData({ ...formData, disponibilidad: e.target.value })}
-                    className="w-4 h-4 text-[#FFC107] bg-[#111] border-[#333] focus:ring-[#FFC107]"
-                  />
-                  <span className="text-white">No disponible</span>
-                </label>
-              </div>
+              <select
+                value={formData.disponibilidad}
+                onChange={(e) => setFormData({ ...formData, disponibilidad: e.target.value })}
+                className="w-full bg-[#111] border border-[#222] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#FFC107] transition-all"
+              >
+                <option value="disponible">Disponible</option>
+                <option value="rentado">Rentado</option>
+                <option value="vendido">Vendido</option>
+                <option value="no disponible">No Disponible</option>
+              </select>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-4">
-          <Link
-            href="/admin/productos"
-            className="px-6 py-3 rounded-lg border border-[#333] text-gray-400 hover:bg-[#1a1a1a] transition-colors font-medium"
-          >
-            Cancelar
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 bg-[#FFC107] text-[#0a0a0a] px-6 py-3 rounded-lg font-bold hover:bg-[#FFB300] transition-all disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Save className="w-5 h-5" />
-                {isEditing ? 'Guardar Cambios' : 'Crear Producto'}
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex items-center justify-center gap-2 w-full bg-[#FFC107] text-[#0a0a0a] py-4 rounded-lg font-bold hover:bg-[#FFB300] transition-all disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+          {saving ? 'Guardando...' : 'Guardar Producto'}
+        </button>
       </form>
     </div>
   );
