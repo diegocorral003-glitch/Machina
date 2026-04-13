@@ -10,7 +10,8 @@ import {
   orderBy,
   serverTimestamp,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  setDoc
 } from 'firebase/firestore';
 
 // Colecciones
@@ -18,6 +19,8 @@ export const COLLECTIONS = {
   PRODUCTS: 'productos',
   CONTACT_MESSAGES: 'mensajes_contacto',
   FAVORITES: 'favoritos',
+  USERS: 'usuarios',
+  CONFIG: 'config',
 };
 
 // Productos
@@ -135,4 +138,81 @@ export async function updateProduct(id: string, data: {
 export async function deleteProduct(id: string) {
   const docRef = doc(db, COLLECTIONS.PRODUCTS, id);
   await deleteDoc(docRef);
+}
+
+// Usuarios
+export async function createUserProfile(userId: string, data: {
+  nombre: string;
+  email: string;
+  telefono?: string;
+  role?: string;
+}) {
+  // Usar setDoc para que si ya existe el documento, lo sobrescriba en lugar de crear otro
+  await setDoc(doc(db, COLLECTIONS.USERS, userId), {
+    ...data,
+    userId,
+    role: data.role || 'usuario',
+    createdAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function getUserProfile(userId: string) {
+  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+}
+
+export async function updateUserProfile(userId: string, data: { nombre?: string; telefono?: string }) {
+  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return;
+  const userDoc = snapshot.docs[0];
+  await updateDoc(doc(db, COLLECTIONS.USERS, userDoc.id), data);
+}
+
+export async function updateUserRole(userId: string, role: string) {
+  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return;
+  const userDoc = snapshot.docs[0];
+  await updateDoc(doc(db, COLLECTIONS.USERS, userDoc.id), { role });
+}
+
+export async function getAllUsers() {
+  const snapshot = await getDocs(collection(db, COLLECTIONS.USERS));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// Configuración del sitio
+export async function getConfig() {
+  const snapshot = await getDocs(collection(db, COLLECTIONS.CONFIG));
+  if (snapshot.empty) return null;
+  return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+}
+
+export async function updateConfig(data: {
+  nombreEmpresa?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  horario?: string;
+  mensajeBienvenida?: string;
+}) {
+  const snapshot = await getDocs(collection(db, COLLECTIONS.CONFIG));
+  if (snapshot.empty) {
+    await addDoc(collection(db, COLLECTIONS.CONFIG), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    const configDoc = snapshot.docs[0];
+    await updateDoc(doc(db, COLLECTIONS.CONFIG, configDoc.id), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  }
 }

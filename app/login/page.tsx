@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Hammer, ArrowRight, Lock, User, Eye, EyeOff, Loader2, Wrench, Truck, Package } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { getUserProfile } from '@/lib/firestore';
 
 export default function Login() {
   const router = useRouter();
@@ -37,12 +38,49 @@ export default function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Guardar usuario sin verificar email (para pruebas)
-      localStorage.setItem('machina_user', JSON.stringify({
+      // Verificar que el correo esté verificado antes de permitir login
+      if (!userCredential.user.emailVerified) {
+        setError('Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.');
+        setLoading(false);
+        await auth.signOut();
+        return;
+      }
+      
+      let userProfile = await getUserProfile(userCredential.user.uid);
+      
+      // Si no existe perfil, crearlo
+      if (!userProfile) {
+        const { createUserProfile } = await import('@/lib/firestore');
+        // Intentar obtener el nombre desde displayName de Firebase
+        const nombreUsuario = userCredential.user.displayName || email.split('@')[0];
+        await createUserProfile(userCredential.user.uid, {
+          nombre: nombreUsuario,
+          email: email,
+          role: 'usuario'
+        });
+        // Volver a obtener el perfil
+        userProfile = await getUserProfile(userCredential.user.uid);
+      }
+      
+      const isAdmin = userProfile?.role === 'admin';
+      
+      // Obtener nombre del perfil de Firestore (prioridad), luego displayName de Firebase, luego email
+      const nombreFinal = (userProfile?.nombre && userProfile.nombre.trim()) 
+        ? userProfile.nombre 
+        : (userCredential.user.displayName || email.split('@')[0]);
+      
+      // Guardar en localStorage
+      const userData = {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
-        isAdmin: email.toLowerCase() === 'admin@machina.mx'
-      }));
+        nombre: nombreFinal,
+        role: userProfile?.role || 'usuario',
+        isAdmin
+      };
+      
+      localStorage.setItem('machina_user', JSON.stringify(userData));
+      
+      console.log('User saved in localStorage:', userData);
       
       router.push('/');
     } catch (err: unknown) {

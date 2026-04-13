@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Hammer, ArrowRight, Lock, User, Mail, Phone, Eye, EyeOff, Loader2, CheckCircle, XCircle, Wrench, Truck, Package } from 'lucide-react';
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { createUserProfile } from '@/lib/firestore';
 
 export default function Register() {
   const router = useRouter();
@@ -53,6 +54,23 @@ export default function Register() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await sendEmailVerification(userCredential.user);
       await updateProfile(userCredential.user, { displayName: name });
+      
+      await createUserProfile(userCredential.user.uid, {
+        nombre: name,
+        email: email,
+        telefono: phone,
+        role: 'usuario'
+      });
+      
+      // IMPORTANTE: Cerrar sesión después del registro para que verifique su correo
+      // hasta que no verifique no puede iniciar sesión
+      try {
+        await auth.signOut();
+      } catch (e) {
+        // Puede fallar si ya está desconectado, ignorar
+      }
+      // Forzar limpieza completa
+      localStorage.removeItem('machina_user');
       
       setSuccess(true);
     } catch (err: unknown) {

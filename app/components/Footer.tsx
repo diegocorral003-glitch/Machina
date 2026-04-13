@@ -1,10 +1,13 @@
+'use client';
+
 import Link from 'next/link';
-import { Hammer, MapPin, Phone } from 'lucide-react';
+import { Phone, MapPin, Hammer } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="bg-dark-950 border-t border-dark-800 pt-20 pb-10 bg-grid-pattern relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <footer className="bg-dark-950 border-t border-dark-800 pt-20 pb-10 bg-carbon relative">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-transparent to-transparent opacity-50"></div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
