@@ -12,9 +12,45 @@ import {
   serverTimestamp,
   updateDoc,
   deleteDoc,
-  setDoc
+  setDoc,
+  DocumentData,
+  CollectionReference
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+// Tipos
+export interface UserProfile {
+  id: string;
+  userId: string;
+  nombre: string;
+  email: string;
+  telefono?: string;
+  role: string;
+  createdAt?: any;
+}
+
+export interface Product {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  categoria: string;
+  imagen: string;
+  marca?: string;
+  modelo?: string;
+  disponibilidad?: string;
+  createdAt?: any;
+}
+
+export interface Category {
+  id: string;
+  nombre: string;
+  slug: string;
+  descripcion?: string;
+  imagenDestacada?: string;
+  destacada?: boolean;
+  createdAt?: any;
+}
 
 // Colecciones
 export const COLLECTIONS = {
@@ -172,14 +208,16 @@ export async function createUserProfile(userId: string, data: {
 }
 
 export async function getUserProfile(userId: string) {
-  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const usersRef = collection(db, COLLECTIONS.USERS) as CollectionReference<DocumentData>;
+  const q = query(usersRef, where('userId', '==', userId));
   const snapshot = await getDocs(q);
   if (snapshot.empty) return null;
   return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
 }
 
 export async function updateUserProfile(userId: string, data: { nombre?: string; telefono?: string }) {
-  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const usersRef = collection(db, COLLECTIONS.USERS) as CollectionReference<DocumentData>;
+  const q = query(usersRef, where('userId', '==', userId));
   const snapshot = await getDocs(q);
   if (snapshot.empty) return;
   const userDoc = snapshot.docs[0];
@@ -187,7 +225,8 @@ export async function updateUserProfile(userId: string, data: { nombre?: string;
 }
 
 export async function updateUserRole(userId: string, role: string) {
-  const q = query(collection(db, COLLECTIONS.USERS), where('userId', '==', userId));
+  const usersRef = collection(db, COLLECTIONS.USERS) as CollectionReference<DocumentData>;
+  const q = query(usersRef, where('userId', '==', userId));
   const snapshot = await getDocs(q);
   if (snapshot.empty) return;
   const userDoc = snapshot.docs[0];
@@ -197,6 +236,15 @@ export async function updateUserRole(userId: string, role: string) {
 export async function getAllUsers() {
   const snapshot = await getDocs(collection(db, COLLECTIONS.USERS));
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function deleteUser(userId: string) {
+  const usersRef = collection(db, COLLECTIONS.USERS) as CollectionReference<DocumentData>;
+  const q = query(usersRef, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return;
+  const userDoc = snapshot.docs[0];
+  await deleteDoc(doc(db, COLLECTIONS.USERS, userDoc.id));
 }
 
 // Configuración del sitio
@@ -234,7 +282,8 @@ export async function updateConfig(data: {
 
 // Categorías
 export async function getCategories() {
-  const q = query(collection(db, COLLECTIONS.CATEGORIES), orderBy('nombre', 'asc'));
+  const categoriesRef = collection(db, COLLECTIONS.CATEGORIES) as CollectionReference<DocumentData>;
+  const q = query(categoriesRef, orderBy('nombre', 'asc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Shield, ShieldOff, Loader2, UserPlus, Mail } from 'lucide-react';
-import { getAllUsers, updateUserRole } from '@/lib/firestore';
+import { Users, Search, Shield, ShieldOff, Loader2, UserPlus, Mail, Trash2, AlertCircle } from 'lucide-react';
+import { getAllUsers, updateUserRole, deleteUser } from '@/lib/firestore';
 
 interface UserProfile {
   id: string;
@@ -19,6 +19,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [updating, setUpdating] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; user: UserProfile | null }>({ show: false, user: null });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -46,6 +48,19 @@ export default function AdminUsers() {
       console.error('Error updating role:', error);
     }
     setUpdating(null);
+  }
+
+  async function handleDelete() {
+    if (!deleteModal.user) return;
+    setDeleting(true);
+    try {
+      await deleteUser(deleteModal.user.userId);
+      setUsers(users.filter(u => u.id !== deleteModal.user!.id));
+      setDeleteModal({ show: false, user: null });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+    setDeleting(false);
   }
 
   const filteredUsers = users.filter(user => 
@@ -156,25 +171,34 @@ export default function AdminUsers() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <button
-                        onClick={() => toggleRole(user)}
-                        disabled={updating === user.id}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                      >
-                        {updating === user.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : user.role === 'admin' ? (
-                          <>
-                            <ShieldOff className="w-4 h-4" />
-                            <span className="text-gray-400 hover:text-white">Quitar admin</span>
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="w-4 h-4" />
-                            <span className="text-[#FFC107] hover:text-[#FFB300]">Hacer admin</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleRole(user)}
+                          disabled={updating === user.id}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {updating === user.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : user.role === 'admin' ? (
+                            <>
+                              <ShieldOff className="w-4 h-4" />
+                              <span className="text-gray-400 hover:text-white">Quitar admin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="w-4 h-4" />
+                              <span className="text-[#FFC107] hover:text-[#FFB300]">Hacer admin</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal({ show: true, user })}
+                          className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -183,6 +207,41 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* Delete Modal */}
+      {deleteModal.show && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0F1012] border border-[#1a1a1a] rounded-xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Eliminar Usuario</h3>
+                <p className="text-gray-500 text-sm">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-gray-400 mb-6">
+              ¿Estás seguro de que deseas eliminar a <span className="text-white font-medium">{deleteModal.user?.nombre}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModal({ show: false, user: null })}
+                className="flex-1 px-4 py-3 rounded-lg border border-[#333] text-gray-400 hover:bg-[#1a1a1a] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,19 +18,21 @@ export default function Login() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem('machina_remember');
-    if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
+    // Solo cargar email si el usuario tiene la preferencia activada
+    const rememberPreference = localStorage.getItem('machina_remember_pref');
+    if (rememberPreference === 'true') {
+      const savedEmail = localStorage.getItem('machina_remember');
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    } else {
+      // Si la preferencia es 'false' o no existe, no cargar nada
+      setRememberMe(false);
     }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    if (rememberMe) {
-      localStorage.setItem('machina_remember', email);
-    } else {
-      localStorage.removeItem('machina_remember');
-    }
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -228,7 +230,18 @@ export default function Login() {
                 <input 
                   type="checkbox" 
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setRememberMe(checked);
+                    // Guardar preferencia inmediatamente al cambiar el checkbox
+                    if (checked) {
+                      localStorage.setItem('machina_remember', email);
+                      localStorage.setItem('machina_remember_pref', 'true');
+                    } else {
+                      localStorage.removeItem('machina_remember');
+                      localStorage.setItem('machina_remember_pref', 'false');
+                    }
+                  }}
                   className="rounded border-[#333] bg-[#111] text-[#FFC107] focus:ring-[#FFC107]" 
                 />
                 Recordar sesión
